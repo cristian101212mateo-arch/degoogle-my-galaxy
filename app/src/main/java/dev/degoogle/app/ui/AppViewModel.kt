@@ -514,6 +514,35 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Pos-boot: reindexa pacotes stock quando o PM continua stale apos o
+     * restore-stock + reboot. Binder so aqui, nunca no restore pre-reboot.
+     */
+    fun reindexStock() {
+        val m = microg ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _ui.update {
+                it.copy(
+                    operationInProgress = true,
+                    steps = listOf(StepLog(null, app.getString(R.string.op_reindex_starting))),
+                    error = null,
+                )
+            }
+            val ok = m.reindexStock()
+            _ui.update {
+                it.copy(
+                    operationInProgress = false,
+                    steps = (it.steps + StepLog(
+                        ok,
+                        if (ok) app.getString(R.string.op_reindex_success) else app.getString(R.string.op_rollback_failed),
+                    )).takeLast(MAX_OPERATION_LOG_LINES),
+                    error = if (ok) null else app.getString(R.string.op_rollback_failed),
+                )
+            }
+            refresh()
+        }
+    }
+
+    /**
      * Soft reboot (userspace) — o único reboot permitido. Aparelhos com root
      * via exploit perdem root e microG num kernel reboot; por isso NUNCA há
      * fallback para reboot completo aqui.

@@ -29,6 +29,7 @@
 #   degoogle.sh backup
 #   degoogle.sh restore-backup
 #   degoogle.sh restore-stock [--wipe-data]
+#   degoogle.sh reindex-stock
 #   degoogle.sh soft-reboot
 #   degoogle.sh status
 #   degoogle.sh dry-run
@@ -282,6 +283,19 @@ global_exec() { global "$@"; }
 global_mount() { global mount "$@"; }
 global_umount() { global umount "$@"; }
 global_mountinfo() { cat "$MOUNTINFO" 2>/dev/null; }
+
+with_timeout()
+{
+    # Binder (pm/am/cmd) pode bloquear para sempre quando o system_server
+    # esta em rescan. Nunca deixar o backend pendurado: timeout curto.
+    local secs="$1"
+    shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$secs" "$@"
+    else
+        "$@"
+    fi
+}
 
 mount_namespace_identity()
 {
@@ -2115,14 +2129,16 @@ resolve_rollback_targets()
 
 pm_enable_or_defer()
 {
+    # Roda no pos-boot (reindex-stock), nunca no restore-stock pre-reboot:
+    # qualquer chamada binder antes do reboot pode travar com o PM em rescan.
     # Durante a janela entre unmount e reboot o PM pode ainda não registrar um
     # APK stock. Isso é esperado se o diretório stock existe; o enable fica
     # pendente para o re-scan pós-boot. Outros erros continuam bloqueando.
     local pkg="$1" target="$2" label="$3" current
-    current="$(pm_path "$pkg")"
+    current="$(with_timeout 15 pm path "$pkg" 2>/dev/null | sed -n 's/^package://p' | head -n 1)"
     if [ -n "$current" ]; then
-        if pm list packages -d --user 0 2>/dev/null | grep -qx "package:$pkg"; then
-            pm enable --user 0 "$pkg" >/dev/null 2>&1 || {
+        if with_timeout 15 pm list packages -d --user 0 2>/dev/null | grep -qx "package:$pkg"; then
+            with_timeout 20 pm enable --user 0 "$pkg" >/dev/null 2>&1 || {
                 say "ERRO: não consegui reabilitar $label ($pkg) já registrado no PM."
                 return 1
             }
@@ -2208,7 +2224,7 @@ remove_microg_data_safely()
     while [ "$attempt" -le 3 ]; do
         # force-stop imediatamente antes de cada tentativa. Reabilitar o GMS
         # antes deste ponto cria uma corrida com processos persistent/UI.
-        am force-stop "$GMS_PKG" 2>/dev/null || true
+        with_timeout 15 am force-stop "$GMS_PKG" 2>/dev/null || true
         rm -rf "$GMS_DATA_USER0" "$GMS_DATA_USERDE" 2>/dev/null || true
         if microg_data_is_cleared; then
             return 0
@@ -2253,7 +2269,12 @@ restore_stock()
     check_root
     require_lock
 
-    local wipe="${1:-}" foreign="" failed="" cache_backup pm_registry_rebuild=0
+    # Pre-reboot por desenho: unmount + limpeza de mascara + wipe de dados +
+    # cache de parse (operacao de arquivo, sem binder). NUNCA mover
+    # packages.xml nem chamar pm/am aqui: com o PM em rescan a chamada trava,
+    # o aparelho congela e o watchdog reinicia. Registro stale e re-enable
+    # ficam para o reindex-stock pos-boot.
+    local wipe="${1:-}" foreign="" failed="" cache_backup
 
     # Package Manager pode estar sem GSF/Store justamente porque os mounts
     # estão ativos. Resolva os alvos antes de qualquer mutação, usando snapshot
@@ -2272,8 +2293,8 @@ restore_stock()
     say "===== RESTORE-STOCK ====="
     say "Targets: GMS=$TARGET_GMS GSF=$TARGET_GSF Store=$TARGET_STORE"
 
-    am force-stop "$GMS_PKG" 2>/dev/null || true
-    am force-stop "$STORE_PKG" 2>/dev/null || true
+    with_timeout 15 am force-stop "$GMS_PKG" 2>/dev/null || true
+    with_timeout 15 am force-stop "$STORE_PKG" 2>/dev/null || true
 
     # Desmonta tudo antes de remover os APKs da fonte. Assim, uma falha de
     # unmount preserva a evidência e permite uma nova tentativa idempotente.
@@ -2351,33 +2372,16 @@ restore_stock()
         say "  cache de parse do PM ausente/vazio — nada a fazer."
     fi
 
-    if package_registry_needs_rebuild; then
-        invalidate_package_registry || {
-            journal_state "ROLLBACK_REQUIRED" >/dev/null 2>&1 || true
-            fail 4 "o PM perdeu o registro de um app stock, mas não consegui invalidar packages.xml com backup"
-        }
-        pm_registry_rebuild=1
-    fi
     journal_state "PACKAGE_CACHE_INVALIDATED" || fail 4 "cache invalidado, mas journal não pôde ser atualizado"
 
-    # Daqui até o fim, nenhuma chamada binder (`am`/`pm`/`cmd`): com o registro
-    # invalidado o system_server pode estar em rescan e qualquer chamada trava.
-    # Só notifica o PackageManager depois que os dados antigos desapareceram
-    # (já removidos acima).
-    # Antes disso, um `pm enable` podia iniciar o GMS stale e fazê-lo recriar
-    # os diretórios de dados; por isso a remoção roda antes da invalidação.
-    if [ "$pm_registry_rebuild" = "1" ]; then
-        say "  registro do PM foi invalidado; não vou regravar enable no estado antigo antes do reboot."
-    else
-        pm_enable_or_defer "$STORE_PKG" "$TARGET_STORE" "Play Store" || {
-            journal_state "ROLLBACK_REQUIRED" >/dev/null 2>&1 || true
-            fail 4 "não consegui preparar a habilitação da Play Store"
-        }
-        pm_enable_or_defer "$GMS_PKG" "$TARGET_GMS" "GMS" || {
-            journal_state "ROLLBACK_REQUIRED" >/dev/null 2>&1 || true
-            fail 4 "não consegui preparar a habilitação do GMS"
-        }
+    # Daqui até o fim, nenhuma chamada binder (`am`/`pm`/`cmd`): com o cache
+    # movido o system_server pode estar em rescan e qualquer chamada trava
+    # (foi esse `pm enable` pre-reboot que congelava o aparelho).
+    # O re-enable de Store/GMS roda no reindex-stock pos-boot.
+    if package_registry_needs_rebuild; then
+        say "  registro do PM parece stale; sera tratado pelo reindex-stock apos o reboot."
     fi
+    say "  re-enable de Play Store/GMS pendente ate o re-scan pos-boot (reindex-stock)."
 
     say ""
     say "RESTORE-STOCK PREPARADO. Reindexamento do Package Manager e reboot são obrigatórios."
@@ -2386,6 +2390,58 @@ restore_stock()
     emit REINDEX_PENDING "1"
     emit REBOOT_REQUIRED "1"
     emit STATE "RESTORE_PREPARED"
+    return 0
+}
+
+reindex_stock()
+{
+    # Pos-boot: PM saudavel de novo, aqui binder e permitido (com timeout).
+    # Invalida cache/registro stale com backup e reabilita Store/GMS.
+    check_root
+    require_lock
+
+    local cache_backup failed=""
+
+    collect_facts
+    resolve_rollback_targets || fail 3 "não foi possível resolver os alvos sem adivinhação"
+    refresh_mount_facts
+
+    [ "$MOUNT_GMS" = "0" ] || failed="$failed GMS"
+    [ "$MOUNT_GSF" = "0" ] || failed="$failed GSF"
+    [ "$MOUNT_STORE" = "0" ] || failed="$failed Store"
+    [ -z "$failed" ] || fail 4 "ainda ha mounts ativos:$failed — rode restore-stock antes do reindex"
+
+    say "===== REINDEX-STOCK ====="
+
+    if [ -d "$PM_CACHE_DIR" ] && [ -n "$(ls -A "$PM_CACHE_DIR" 2>/dev/null)" ]; then
+        mkdir -p "$BACKUP_BASE" 2>/dev/null || fail 4 "não foi possível preparar backup do cache do PackageManager"
+        cache_backup="$BACKUP_BASE/pm-cache-$(date +%s)"
+        if mv "$PM_CACHE_DIR" "$cache_backup" 2>/dev/null; then
+            say "  cache de parse do PM movido para $cache_backup (re-scan forçado)."
+        elif rm -rf "${PM_CACHE_DIR:?}"/* 2>/dev/null || rm -rf "$PM_CACHE_DIR" 2>/dev/null; then
+            say "  cache de parse do PM limpo (re-scan forçado)."
+        else
+            fail 4 "não foi possível limpar $PM_CACHE_DIR"
+        fi
+    else
+        say "  cache de parse do PM ausente/vazio — nada a fazer."
+    fi
+
+    if package_registry_needs_rebuild; then
+        invalidate_package_registry || fail 4 "não consegui invalidar packages.xml com backup"
+    fi
+
+    pm_enable_or_defer "$STORE_PKG" "$TARGET_STORE" "Play Store" || {
+        journal_state "ROLLBACK_REQUIRED" >/dev/null 2>&1 || true
+        fail 4 "não consegui reabilitar a Play Store"
+    }
+    pm_enable_or_defer "$GMS_PKG" "$TARGET_GMS" "GMS" || {
+        journal_state "ROLLBACK_REQUIRED" >/dev/null 2>&1 || true
+        fail 4 "não consegui reabilitar o GMS"
+    }
+
+    say "REINDEX-STOCK CONCLUÍDO."
+    emit REINDEX_OK "1"
     return 0
 }
 
@@ -2644,6 +2700,9 @@ case "${1:-}" in
     restore-stock)
         restore_stock "${2:-}"
         ;;
+    reindex-stock)
+        reindex_stock
+        ;;
     soft-reboot)
         soft_reboot
         ;;
@@ -2669,6 +2728,6 @@ case "${1:-}" in
         self_test
         ;;
     *)
-        fail_usage "probe|dry-run|preflight|prepare <gms> <companion>|finalize|cleanup|cleanup-residue|backup|restore-backup|restore-stock [--wipe-data]|rollback [--wipe-data]|post-boot-validate|soft-reboot|unlock|status|test"
+        fail_usage "probe|dry-run|preflight|prepare <gms> <companion>|finalize|cleanup|cleanup-residue|backup|restore-backup|restore-stock [--wipe-data]|reindex-stock|rollback [--wipe-data]|post-boot-validate|soft-reboot|unlock|status|test"
         ;;
 esac

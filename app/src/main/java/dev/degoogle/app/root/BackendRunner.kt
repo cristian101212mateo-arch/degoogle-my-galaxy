@@ -70,6 +70,9 @@ class BackendRunner(
     suspend fun restoreStock(wipeData: Boolean = true): BackendCommandResult =
         runCommand(if (wipeData) listOf("restore-stock", "--wipe-data") else listOf("restore-stock"))
 
+    /** Pos-boot: invalida cache/registro stale e reabilita Store/GMS. */
+    suspend fun reindexStock(): BackendCommandResult = runCommand(listOf("reindex-stock"))
+
     suspend fun softReboot(source: RebootSource = RebootSource.MANUAL): BackendCommandResult =
         runCommand(
             args = listOf("soft-reboot"),

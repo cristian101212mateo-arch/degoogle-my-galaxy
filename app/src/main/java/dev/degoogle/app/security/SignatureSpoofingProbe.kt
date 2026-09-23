@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import dev.degoogle.app.domain.CapabilityResult
 import dev.degoogle.app.domain.CapabilityStatus
+import dev.degoogle.app.microg.MicrogPackages
 import java.security.MessageDigest
 
 /**
@@ -12,8 +13,8 @@ import java.security.MessageDigest
  * PackageManager está retornando a assinatura spoofada.
  */
 object SignatureSpoofingEvaluation {
-    private const val GMS = "com.google.android.gms"
-    private const val STORE = "com.android.vending"
+    private const val GMS = MicrogPackages.GMS
+    private const val STORE = MicrogPackages.VENDING
 
     /** Certificado Android/Google embutido pelo FakeGApps. */
     const val FAKEGAPPS_CERT_SHA256 =
@@ -76,8 +77,8 @@ class SignatureSpoofingProbe(
             PackageManager.GET_SIGNATURES
         }
         SignatureSpoofingEvaluation.evaluate(
-            gmsDigests = readDigests("com.google.android.gms", flags),
-            storeDigests = readDigests("com.android.vending", flags),
+            gmsDigests = readDigests(MicrogPackages.GMS, flags),
+            storeDigests = readDigests(MicrogPackages.VENDING, flags),
             backendResult = backendResult,
         )
     }.getOrElse { error ->

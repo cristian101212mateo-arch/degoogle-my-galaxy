@@ -93,6 +93,9 @@
     <string name="op_rollback_starting">Starting Google stock rollback…</string>
     <string name="op_rollback_prepared">Rollback prepared; soft reboot required.</string>
     <string name="op_rollback_failed">Rollback failed.</string>
+    <string name="op_reindex_starting">Reindexing stock packages after reboot…</string>
+    <string name="op_reindex_success">Stock packages reindexed successfully.</string>
+    <string name="op_reindex_failed">Stock reindex failed (exit %1$d): %2$s</string>
     <string name="op_soft_reboot_requesting">Requesting soft reboot…</string>
     <string name="op_soft_reboot_started">Starting soft reboot…</string>
     <string name="op_soft_reboot_requested">Soft reboot requested; waiting for post-boot validation.</string>

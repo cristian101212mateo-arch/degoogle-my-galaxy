@@ -66,7 +66,9 @@ snapshot ou pelo perfil S24 validado, usando `mountinfo` mesmo quando GSF/Store
 sumiram temporariamente do Package Manager. Só remove os APKs da máscara depois
 de desmontar todos os mounts próprios. Se o PM ainda estiver stale, registra
 `REINDEX_PENDING`, deixa o enable para o re-scan pós-boot e exige reboot antes de
-confirmar `RESTORED` na UI.
+confirmar `RESTORED` na UI. Por segurança o `restore-stock` pre-reboot nunca
+move `packages.xml` nem chama `pm`/`am` após mexer no cache: invalidação de
+registro e re-enable rodam no `reindex-stock` pós-boot, com timeout.
 
 ### 2.5 Estado da loja durante `prepare`
 
@@ -173,7 +175,8 @@ degoogle.sh prepare <gms> <companion>
 degoogle.sh finalize          valida priv-app + grants/appops/doze (idempotente)
 degoogle.sh backup            microG → cópia de diretórios MicroG Session
 degoogle.sh restore-backup    restaura gms-user0/userde no destino correto
-degoogle.sh restore-stock     rollback completo (GMS+GSF+Store), preserva backup
+degoogle.sh restore-stock     rollback pre-reboot (unmount+mascara+dados, sem binder), preserva backup
+degoogle.sh reindex-stock     pos-boot: invalida cache/registro stale e reabilita Store/GMS
 degoogle.sh status            estado derivado
 degoogle.sh soft-reboot       userspace reboot com fallback
 degoogle.sh test              self-test/failure injection (sem tocar no aparelho)

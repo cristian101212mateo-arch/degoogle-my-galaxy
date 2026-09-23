@@ -33,8 +33,8 @@
 #  20. updates legítimos em /data/app não viram estado inesperado
 #  21. FakeGApps/LSPosed detectados sem falso PASS funcional
 #  22. cleanup-residue remove payloads conhecidos e preserva evidência estranha
-#  23. rollback apaga dados antes de notificar/reabilitar o GMS
-#  24. registro stale do Package Manager é invalidado com backup
+#  23. restore-stock pre-reboot sem binder; enable no reindex pos-boot
+#  24. registro stale do PM invalidado no reindex pos-boot, com backup
 # =============================================================================
 
 set -u
@@ -614,19 +614,24 @@ grep -q '^DEGOOGLE_MASK_RESIDUE_PRESENT=1$' "$ROOT/residue_cleanup.out" && \
 [ -f "$BACKUP_BASE/keep.txt" ] && ok "backup preservado" || bad "backup foi alterado"
 teardown_root
 
-echo "== cenário 23: dados do GMS são apagados antes da habilitação"
+echo "== cenário 23: restore-stock pre-reboot não chama binder; enable fica para o reindex pos-boot"
 setup_root
-# Marca o GMS como desabilitado para obrigar pm_enable_or_defer a executar
-# `pm enable`; o fake falha se os payloads antigos ainda existirem.
+# restore-stock não pode mais executar `pm enable` (binder trava com o PM em
+# rescan). O wipe roda pre-reboot, o enable roda no reindex-stock pos-boot; o
+# fake falha se o enable rodar antes da limpeza dos dados.
 FAKE_PM_GMS_DISABLED=1 PM_REQUIRE_GMS_DATA_CLEARED_BEFORE_ENABLE=1 \
-    run_script 0 "restore-stock elimina corrida entre enable e wipe" restore-stock --wipe-data > "$ROOT/ordered_restore.out" || true
+    run_script 0 "restore-stock faz wipe sem binder" restore-stock --wipe-data > "$ROOT/ordered_restore.out" || true
 [ ! -e "$DATA_USER0/registration.xml" ] && [ ! -e "$DATA_USERDE/device.xml" ] && \
-    ok "payloads do microG removidos antes do enable" || bad "payloads antigos permaneceram"
+    ok "payloads do microG removidos pre-reboot" || bad "payloads antigos permaneceram"
 grep -q '^state=REINDEX_PENDING$' "$BACKUP_BASE/transaction/journal" && \
     ok "rollback ordenado alcançou REINDEX_PENDING" || bad "rollback ordenado não foi concluído"
+FAKE_PM_GMS_DISABLED=1 PM_REQUIRE_GMS_DATA_CLEARED_BEFORE_ENABLE=1 \
+    run_script 0 "reindex-stock reabilita apos o wipe" reindex-stock > "$ROOT/ordered_reindex.out" || true
+grep -q 'REINDEX_OK' "$ROOT/ordered_reindex.out" || grep -q 'REINDEX-STOCK CONCLUÍDO' "$ROOT/ordered_reindex.out" && \
+    ok "reindex-stock concluiu o enable pos-boot" || bad "reindex-stock não concluiu o enable"
 teardown_root
 
-echo "== cenário 24: registro stale do PM é invalidado com backup"
+echo "== cenário 24: registro stale do PM é invalidado no reindex pos-boot, com backup"
 setup_root
 printf 'packages\n' > "$PM_SYSTEM/packages.xml"
 printf 'packages.list\n' > "$PM_SYSTEM/packages.list"
@@ -634,14 +639,14 @@ printf 'reserve\n' > "$PM_SYSTEM/packages.xml.reservecopy"
 printf 'backup\n' > "$PM_SYSTEM/packages-backup.xml"
 printf 'stock gsf\n' > "$PROF_GSF/GoogleServicesFramework.apk"
 printf 'stock store\n' > "$PROF_STORE/Phonesky.apk"
-PM_GSF_MISSING=1 PM_STORE_MISSING=1 run_script 0 "restore-stock invalida registro PM quando stock está presente" restore-stock >/dev/null || true
+PM_GSF_MISSING=1 PM_STORE_MISSING=1 run_script 0 "restore-stock pre-reboot preserva registro para o pos-boot" restore-stock >/dev/null || true
+[ -e "$PM_SYSTEM/packages.xml" ] && ok "restore-stock não move packages.xml pre-reboot" || bad "restore-stock moveu packages.xml pre-reboot"
+PM_GSF_MISSING=1 PM_STORE_MISSING=1 run_script 0 "reindex-stock invalida registro PM quando stock está presente" reindex-stock >/dev/null || true
 [ ! -e "$PM_SYSTEM/packages.xml" ] && [ ! -e "$PM_SYSTEM/packages.list" ] && \
     [ ! -e "$PM_SYSTEM/packages.xml.reservecopy" ] && ok "arquivos stale do PM foram removidos do caminho ativo" || \
     bad "registro stale do PM permaneceu ativo"
 ls "$BACKUP_BASE"/package-registry-*/* >/dev/null 2>&1 && \
     ok "registro stale foi preservado no backup" || bad "backup do registro do PM ausente"
-grep -q '^state=REINDEX_PENDING$' "$BACKUP_BASE/transaction/journal" && \
-    ok "journal mantém reindexamento pendente" || bad "journal não marca REINDEX_PENDING após rebuild"
 teardown_root
 
 echo "== cenário 25: cooldown protege apenas a recuperação automática"

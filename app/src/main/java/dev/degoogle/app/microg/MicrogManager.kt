@@ -40,17 +40,17 @@ class MicrogManager(
     suspend fun prepareNewSession(): PrepareResult {
         Log.i(TAG, "iniciando prepareNewSession")
         onStep(context.getString(R.string.op_querying_repo))
-        val gms = releases.latest("com.google.android.gms")
+        // GmsCore + Companion (FakeStore) sempre da mesma fonte; nunca
+        // mistura GitHub com F-Droid no mesmo par.
+        val pair = releases.latestPair()
+        val gms = pair?.gms
             ?: return PrepareResult(false, null, null, context.getString(R.string.op_repo_error)).also {
                 Log.e(TAG, "falha ao consultar release do GmsCore")
             }
         Log.i(TAG, "GmsCore: v${gms.versionCode} ${gms.apkName} sha256=${gms.sha256.take(16)}…")
         onStep(context.getString(R.string.op_gms_release, label(gms)))
 
-        val companion = releases.latest("com.android.vending")
-            ?: return PrepareResult(false, gms, null, context.getString(R.string.op_companion_error)).also {
-                Log.e(TAG, "falha ao consultar release do Companion")
-            }
+        val companion = pair.companion
         Log.i(TAG, "Companion: v${companion.versionCode} ${companion.apkName}")
         onStep(context.getString(R.string.op_companion_release, label(companion)))
 
@@ -76,7 +76,7 @@ class MicrogManager(
         onStep(context.getString(R.string.op_validating_apks))
         val v1 = validator.validate(
             file = gmsApk,
-            expectedPackage = "com.google.android.gms",
+            expectedPackage = MicrogPackages.GMS,
             expectedVersionCode = gms.versionCode,
             expectedVersionName = gms.versionName.takeIf { gms.sha256.isNotEmpty() } ?: "",
             expectedSha256 = gms.sha256,
@@ -89,7 +89,7 @@ class MicrogManager(
         }
         val v2 = validator.validate(
             file = companionApk,
-            expectedPackage = "com.android.vending",
+            expectedPackage = MicrogPackages.VENDING,
             expectedVersionCode = companion.versionCode,
             expectedVersionName = companion.versionName.takeIf { companion.sha256.isNotEmpty() } ?: "",
             expectedSha256 = companion.sha256,
@@ -204,6 +204,23 @@ class MicrogManager(
             return false
         }
         onStep(context.getString(R.string.op_rollback_prepared))
+        return true
+    }
+
+    suspend fun reindexStock(): Boolean {
+        onStep(context.getString(R.string.op_reindex_starting))
+        val r = backend.reindexStock()
+        if (!r.succeeded) {
+            onStep(
+                context.getString(
+                    R.string.op_reindex_failed,
+                    r.exitCode,
+                    r.stderr.lineSequence().lastOrNull().orEmpty(),
+                ),
+            )
+            return false
+        }
+        onStep(context.getString(R.string.op_reindex_success))
         return true
     }
 

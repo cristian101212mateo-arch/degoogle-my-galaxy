@@ -214,7 +214,7 @@ Exit codes:
 degoogle.sh
   backend shell:
   probe / dry-run / preflight / prepare / finalize /
-  backup / restore-backup / restore-stock / rollback /
+  backup / restore-backup / restore-stock / reindex-stock / rollback /
   post-boot-validate / soft-reboot / status / test
 
 microg-session.sh

@@ -69,6 +69,35 @@ class ReleaseRepository(
             }.getOrNull()
     }
 
+    /**
+     * Par GmsCore + Companion (FakeStore) da mesma fonte. Nunca mistura
+     * versoes de fontes diferentes: se o GitHub nao tiver asset para um dos
+     * dois, os dois vem do F-Droid.
+     */
+    data class MicrogReleases(val gms: Release, val companion: Release)
+
+    suspend fun latestPair(): MicrogReleases? {
+        val gmsGithub = latestFromGithub(MicrogPackages.GMS)
+        val companionGithub = latestFromGithub(MicrogPackages.VENDING)
+        if (gmsGithub != null && companionGithub != null) {
+            return MicrogReleases(gmsGithub, companionGithub)
+        }
+        return runCatching {
+            val v2 = fetchIndexV2()
+            val gms = if (v2 != null) {
+                parseIndexV2(v2, MicrogPackages.GMS) ?: parseIndexV1(fetchIndexV1(), MicrogPackages.GMS)
+            } else {
+                parseIndexV1(fetchIndexV1(), MicrogPackages.GMS)
+            } ?: return null
+            val companion = if (v2 != null) {
+                parseIndexV2(v2, MicrogPackages.VENDING) ?: parseIndexV1(fetchIndexV1(), MicrogPackages.VENDING)
+            } else {
+                parseIndexV1(fetchIndexV1(), MicrogPackages.VENDING)
+            } ?: return null
+            MicrogReleases(gms, companion)
+        }.getOrNull()
+    }
+
     // --------------------------------------------------------------- GitHub
 
     @Serializable
