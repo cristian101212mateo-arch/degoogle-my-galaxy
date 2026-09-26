@@ -51,4 +51,37 @@ object DeviceProfiles {
                 (profile.minSdk == null || sdk.toIntOrNull()?.let { it >= profile.minSdk } == true)
         }
     }
+
+    /**
+     * Perfil efêmero p/ Samsung fora da lista homologada: reaproveita os
+     * diretórios descobertos pelo Package Locator em vez de exigir paths do
+     * S24. Null fora de Samsung ou sem nenhum alvo derivável.
+     */
+    fun dynamic(facts: SystemFacts): DeviceProfile? {
+        if (!facts.manufacturer.equals("samsung", ignoreCase = true)) return null
+        return DeviceProfile(
+            id = "dynamic-${facts.model.ifBlank { "unknown" }}",
+            manufacturer = "samsung",
+            models = setOf(facts.model),
+            gmsSystemDir = stockDir(facts.gmsPackage, facts.gmsPath),
+            gsfSystemDir = stockDir(facts.gsfPackage, facts.gsfPath),
+            storeSystemDir = stockDir(facts.storePackage, facts.storePath),
+        )
+    }
+
+    private fun stockDir(info: SystemPackageInfo?, activePath: String?): String {
+        info?.targetDirectory?.takeIf { info.safeTarget }?.let { return it }
+        info?.originalSystemPath?.takeIf { underAllowedRoots(it) }
+            ?.let { return it.substringBeforeLast('/') }
+        activePath?.takeIf { underAllowedRoots(it) }
+            ?.let { return it.substringBeforeLast('/') }
+        // Placeholder que nunca casa com path real: estado que precisar
+        // desse diretório cai em ERROR (fail closed), nunca em STOCK.
+        return "__unknown__"
+    }
+
+    private fun underAllowedRoots(path: String): Boolean =
+        !path.contains("..") && SystemPackageInfo.ALLOWED_SYSTEM_ROOTS.any {
+            path == it || path.startsWith("$it/")
+        }
 }

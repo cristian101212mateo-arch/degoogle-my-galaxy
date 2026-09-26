@@ -112,10 +112,14 @@ object CompatibilityEngine {
             else -> DeviceCompatibility.PROBABLY_SUPPORTED
         }
 
-        val allCriticalPass = matrix.allPass()
+        // Firmware não homologado: estratégia de soft reboot existe mas sem
+        // validação de campo. Com opt-in experimental explícito isso vira
+        // aviso assumido pelo usuário, não bloqueio. FAIL/UNKNOWN continuam
+        // bloqueando; WARN nas demais críticas também.
+        val softRebootStatus = matrix[Capability.SAFE_SOFT_REBOOT].status
         val canExperimental = compatibility == DeviceCompatibility.PROBABLY_SUPPORTED &&
-            allCriticalPass &&
-            matrix[Capability.SAFE_SOFT_REBOOT].status == CapabilityStatus.PASS &&
+            matrix.allPass(CapabilityMatrix.CRITICAL_CAPABILITIES - Capability.SAFE_SOFT_REBOOT) &&
+            (softRebootStatus == CapabilityStatus.PASS || softRebootStatus == CapabilityStatus.WARN) &&
             matrix[Capability.SAFE_RESTORE].status == CapabilityStatus.PASS
 
         return CompatibilityDecision(

@@ -780,7 +780,6 @@ preparable_system_update()
     esac
     [ "$update" = "1" ] || return 1
     printf '%s' "$active" | grep -q '^/data/app/' || return 1
-    profile_check || return 1
     is_allowed_system_path "$expected"
 }
 

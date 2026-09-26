@@ -20,7 +20,9 @@ object StateDetector {
             sdk = facts.androidSdk,
         )
         val compatibleProfile = profile?.takeIf { it.id == localProfile?.id } ?: localProfile
-        if (compatibleProfile == null) return DeviceState.UNSUPPORTED
+            // Samsung fora da lista homologada usa os dirs descobertos pelo
+            // locator; o resto continua validado como no perfil fixo.
+            ?: DeviceProfiles.dynamic(facts) ?: return DeviceState.UNSUPPORTED
 
         val profileSafe = compatibleProfile
 

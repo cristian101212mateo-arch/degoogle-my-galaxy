@@ -34,6 +34,54 @@ class StateDetectorTest {
         assertEquals(DeviceState.UNSUPPORTED, StateDetector.detect(f, profile))
     }
 
+    // 2b. Samsung fora da lista homologada usa perfil dinâmico do locator
+    @Test
+    fun `samsung não homologado com stock vira STOCK via perfil dinâmico`() {
+        val gms = "/product/priv-app/GmsCore/GmsCore.apk"
+        val gsf = "/system_ext/priv-app/GoogleServicesFramework/GoogleServicesFramework.apk"
+        val store = "/product/priv-app/Phonesky/Phonesky.apk"
+        val f = facts {
+            rootOk = true
+            manufacturer = "samsung"
+            model = "SM-S938B"
+            gmsPath = gms
+            gmsPackage = SystemPackageInfo(
+                packageName = "com.google.android.gms",
+                activeCodePath = gms,
+                originalSystemPath = gms,
+                targetDirectory = "/product/priv-app/GmsCore",
+            )
+            gsfPath = gsf
+            gsfPackage = SystemPackageInfo(
+                packageName = "com.google.android.gsf",
+                activeCodePath = gsf,
+                originalSystemPath = gsf,
+                targetDirectory = "/system_ext/priv-app/GoogleServicesFramework",
+            )
+            storePath = store
+            storePackage = SystemPackageInfo(
+                packageName = "com.android.vending",
+                activeCodePath = store,
+                originalSystemPath = store,
+                targetDirectory = "/product/priv-app/Phonesky",
+            )
+        }
+        assertEquals(DeviceState.STOCK, StateDetector.detect(f, profile = null))
+    }
+
+    @Test
+    fun `samsung não homologado com path fora da allowlist vira ERROR`() {
+        val f = facts {
+            rootOk = true
+            manufacturer = "samsung"
+            model = "SM-S938B"
+            gmsPath = "/data/local/tmp/foo/base.apk"
+            gsfPath = "/system_ext/priv-app/GoogleServicesFramework/GoogleServicesFramework.apk"
+            storePath = "/product/priv-app/Phonesky/Phonesky.apk"
+        }
+        assertEquals(DeviceState.ERROR, StateDetector.detect(f, profile = null))
+    }
+
     // 3. stock correto
     @Test
     fun `stock correto vira STOCK`() {

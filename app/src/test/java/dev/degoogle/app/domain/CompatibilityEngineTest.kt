@@ -174,7 +174,7 @@ class CompatibilityEngineTest {
     }
 
     @Test
-    fun `S24 com reboot WARN não libera experimental`() {
+    fun `reboot WARN com resto PASS libera experimental via opt-in`() {
         val capabilities = allPassCapabilities().toMutableMap()
         capabilities[Capability.SAFE_SOFT_REBOOT] = CapabilityResult.warn(
             "estrategia existe, mas firmware não foi homologado",
@@ -191,7 +191,31 @@ class CompatibilityEngineTest {
         assertEquals(KnownGoodMatch.FIRMWARE_FAMILY_MATCH, decision.knownGood.level)
         assertEquals(DeviceCompatibility.PROBABLY_SUPPORTED, decision.compatibility)
         assertFalse(decision.canExecuteNormally)
-        assertFalse(decision.canExecuteExperimental)
+        assertTrue(decision.canExecuteExperimental)
+    }
+
+    @Test
+    fun `modelo Samsung desconhecido compatível libera experimental`() {
+        val capabilities = allPassCapabilities().toMutableMap()
+        capabilities[Capability.SAFE_SOFT_REBOOT] = CapabilityResult.warn(
+            "estrategia existe, mas firmware não foi homologado",
+            "SYS_POWERCTL_USERSPACE",
+        )
+        val decision = CompatibilityEngine.evaluate(
+            facts(
+                fingerprint = "samsung/pa3qxxx/pa3q:16/BP4A.251205.006/S938BXXSBCZG3:user/release-keys",
+                capabilities = capabilities,
+            ).copy(
+                model = "SM-S938B",
+                device = "pa3q",
+                product = "pa3qxxx",
+                rebootStrategy = RebootStrategy(RootBackendType.KERNELSU, "SYS_POWERCTL_USERSPACE", Confidence.LOW, false),
+            ),
+        )
+        assertEquals(KnownGoodMatch.NO_MATCH, decision.knownGood.level)
+        assertEquals(DeviceCompatibility.PROBABLY_SUPPORTED, decision.compatibility)
+        assertFalse(decision.canExecuteNormally)
+        assertTrue(decision.canExecuteExperimental)
     }
 
     @Test
