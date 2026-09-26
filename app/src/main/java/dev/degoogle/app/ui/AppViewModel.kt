@@ -204,7 +204,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
                         operationId = it.operationId,
                         fingerprint = facts.fingerprint,
                         state = TransactionState.RESTORED,
-                        detail = "estado stock confirmado após rollback",
+                        detail = "stock state confirmed after rollback",
                     )
                 }
                 prefs.clearPendingOperation()
@@ -564,7 +564,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
                 operationId = operationIdForCurrentTransaction(),
                 fingerprint = _ui.value.facts.fingerprint,
                 state = TransactionState.REBOOT_REQUESTED,
-                detail = "soft reboot solicitado; não assumir sucesso até pós-boot",
+                detail = "soft reboot requested; do not assume success until post-boot",
             )
             val result = r.softReboot()
             val ok = result.succeeded
@@ -580,7 +580,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
                     operationId = operationIdForCurrentTransaction(),
                     fingerprint = _ui.value.facts.fingerprint,
                     state = stateAfterRefusal,
-                    detail = "soft reboot recusado",
+                    detail = "soft reboot refused",
                 )
                 // A refused request never started a reboot. Do not leave a
                 // stale finalize notification pending for the next boot.

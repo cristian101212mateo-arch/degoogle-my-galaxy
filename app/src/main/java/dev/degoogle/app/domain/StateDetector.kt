@@ -126,11 +126,11 @@ data class PrivAppValidationResult(
 
     val issues: List<String>
         get() = buildList {
-            if (!packageRegistered) add("Pacote não registrado")
-            if (!pathUnderMask) add("Path fora da máscara")
-            if (!privilegedFlag) add("Flag PRIVILEGED ausente")
-            if (!requestedInteractAcrossUsers) add("INTERACT_ACROSS_USERS ausente")
-            if (!mountSourceIsMask) add("Mount não provém da nossa máscara")
+            if (!packageRegistered) add("Package not registered")
+            if (!pathUnderMask) add("Path outside mask")
+            if (!privilegedFlag) add("PRIVILEGED flag missing")
+            if (!requestedInteractAcrossUsers) add("INTERACT_ACROSS_USERS missing")
+            if (!mountSourceIsMask) add("Mount not from our mask")
         }
 }
 

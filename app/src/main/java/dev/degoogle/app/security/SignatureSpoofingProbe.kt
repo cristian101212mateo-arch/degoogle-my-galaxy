@@ -35,14 +35,14 @@ object SignatureSpoofingEvaluation {
 
         if (gmsSpoofed && storeSpoofed) {
             return CapabilityResult.pass(
-                "PackageManager retornou a assinatura FakeGApps para GMS e Play Store; " +
-                    "verificação funcional concluída",
+                "PackageManager returned the FakeGApps signature for GMS and Play Store; " +
+                    "functional verification complete",
             )
         }
 
         if (gmsMicroG || gmsSpoofed) {
             return CapabilityResult.pass(
-                "microG ativo com assinatura oficial ou FakeGApps verificado (gms=${gmsDigests?.joinToString()})",
+                "microG active with official signature or verified FakeGApps (gms=${gmsDigests?.joinToString()})",
             )
         }
 
@@ -52,12 +52,12 @@ object SignatureSpoofingEvaluation {
 
         if (gmsDigests.isNullOrEmpty() || storeDigests.isNullOrEmpty()) {
             return CapabilityResult.unknown(
-                "assinaturas de GMS/Play Store não puderam ser lidas pelo PackageManager",
+                "GMS/Play Store signatures could not be read via PackageManager",
             )
         }
 
         return CapabilityResult.fail(
-            "PackageManager ainda não retorna a assinatura spoofada para GMS e Play Store",
+            "PackageManager does not yet return the spoofed signature for GMS and Play Store",
             "gms=${gmsDigests.joinToString()}; store=${storeDigests.joinToString()}",
         )
     }
@@ -83,7 +83,7 @@ class SignatureSpoofingProbe(
         )
     }.getOrElse { error ->
         backendResult ?: CapabilityResult.unknown(
-            "não foi possível executar a verificação funcional: ${error.javaClass.simpleName}",
+            "could not run functional verification: ${error.javaClass.simpleName}",
         )
     }
 

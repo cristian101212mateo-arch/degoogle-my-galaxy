@@ -36,7 +36,7 @@ abstract class CommandRootBackend(
     override suspend fun execute(command: List<String>): RootResult = executor.execute(command)
 
     override suspend fun canEnterGlobalMountNamespace(): CapabilityResult {
-        if (!isAvailable()) return CapabilityResult.fail("backend root não está disponível")
+        if (!isAvailable()) return CapabilityResult.fail("root backend not available")
         val identityCheck = """
             self=${'$'}(readlink /proc/self/ns/mnt 2>/dev/null) || exit 1
             pid1=${'$'}(readlink /proc/1/ns/mnt 2>/dev/null) || exit 1
@@ -45,17 +45,17 @@ abstract class CommandRootBackend(
         """.trimIndent()
         val result = executor.execute(listOf("sh", "-c", identityCheck))
         return if (result.succeeded) {
-            CapabilityResult.pass("self/PID 1/global mount namespace conferidos")
+            CapabilityResult.pass("self/PID 1/global mount namespace verified")
         } else {
             CapabilityResult.fail(
-                "não foi possível entrar no namespace do PID 1",
+                "could not enter PID 1 namespace",
                 "exit=${result.exitCode} ${result.stderr.trim()}".trim(),
             )
         }
     }
 
     override suspend fun canPerformBindMount(): CapabilityResult {
-        if (!isAvailable()) return CapabilityResult.fail("backend root não está disponível")
+        if (!isAvailable()) return CapabilityResult.fail("root backend not available")
         // Script constante: não incorpora dados do usuário. O teste é isolado,
         // reversível e nunca toca nos diretórios de GMS/GSF/Store.
         val testScript = """
@@ -76,23 +76,23 @@ abstract class CommandRootBackend(
         """.trimIndent()
         val result = executor.execute(listOf("sh", "-c", testScript))
         return if (result.succeeded) {
-            CapabilityResult.pass("bind mount temporário global criado, lido e desmontado")
+            CapabilityResult.pass("global temporary bind mount created, read and unmounted")
         } else {
             CapabilityResult.fail(
-                "bind mount global reversível falhou",
+                "reversible global bind mount failed",
                 "exit=${result.exitCode} ${result.stderr.trim()}".trim(),
             )
         }
     }
 
     override suspend fun supportsSoftReboot(): CapabilityResult {
-        if (!isAvailable()) return CapabilityResult.fail("backend root não está disponível")
+        if (!isAvailable()) return CapabilityResult.fail("root backend not available")
         val method = when (type) {
             RootBackendType.KERNELSU -> "/data/adb/ksud"
             else -> "sys.powerctl userspace"
         }
         return CapabilityResult.warn(
-            reason = "estratégia existe, mas segurança depende de homologação do firmware",
+            reason = "strategy exists, but safety depends on firmware homologation",
             evidence = method,
         )
     }
@@ -104,7 +104,7 @@ abstract class CommandRootBackend(
         }
         return OperationResult(
             succeeded = result.succeeded,
-            message = if (result.succeeded) "soft reboot solicitado" else result.stderr.ifBlank { "soft reboot falhou" },
+            message = if (result.succeeded) "soft reboot requested" else result.stderr.ifBlank { "soft reboot failed" },
             exitCode = result.exitCode,
         )
     }

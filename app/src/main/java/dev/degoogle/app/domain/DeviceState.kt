@@ -27,11 +27,11 @@ enum class DeviceState(@StringRes val labelRes: Int) {
 enum class AppAction(val label: String) {
     DEGOOGLE("DeGoogle"),
     SOFT_REBOOT("Soft Reboot"),
-    CANCEL_AND_RESTORE("Cancelar e restaurar"),
-    OPEN_MICROG("Abrir microG"),
-    CREATE_BACKUP("Criar backup"),
-    UPDATE_BACKUP("Atualizar backup"),
-    RESTORE_GOOGLE("Restaurar Google"),
-    VIEW_DIAGNOSTICS("Diagnóstico"),
+    CANCEL_AND_RESTORE("Cancel and restore"),
+    OPEN_MICROG("Open microG"),
+    CREATE_BACKUP("Create backup"),
+    UPDATE_BACKUP("Update backup"),
+    RESTORE_GOOGLE("Restore Google"),
+    VIEW_DIAGNOSTICS("Diagnostics"),
     NONE(""),
 }

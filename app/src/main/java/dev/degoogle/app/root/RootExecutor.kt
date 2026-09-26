@@ -111,7 +111,7 @@ class SuRootExecutor(
                         if (proc.isAlive) proc.destroyForcibly()
                     }
                 }.getOrElse { e ->
-                    RootResult.Error(e.message ?: "falha ao executar su", stderr = "")
+                    RootResult.Error(e.message ?: "su execution failed", stderr = "")
                 }
             }
         }
@@ -129,7 +129,7 @@ class LocalRootExecutor(
             val err = proc.errorStream.bufferedReader().readText()
             val code = proc.waitFor()
             RootResult.Ok(code, out, err)
-        }.getOrElse { RootResult.Error(it.message ?: "erro local") }
+        }.getOrElse { RootResult.Error(it.message ?: "local error") }
     },
 ) : RootExecutor {
     override suspend fun execute(command: List<String>): RootResult = delegate(command)

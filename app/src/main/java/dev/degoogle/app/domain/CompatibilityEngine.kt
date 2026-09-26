@@ -62,7 +62,7 @@ data class CompatibilityDecision(
             rebootStrategy = null,
             canExecuteNormally = false,
             canExecuteExperimental = false,
-            reasons = listOf("probe ainda não executado"),
+            reasons = listOf("probe not run yet"),
         )
     }
 }
@@ -149,7 +149,7 @@ object CompatibilityEngine {
         return CapabilityMatrix(
             matrix.results + (
                 Capability.SAFE_SOFT_REBOOT to CapabilityResult.pass(
-                    "estratégia ${strategy.method} homologada no Known-Good DB para este firmware",
+                    "strategy ${strategy.method} homologated in Known-Good DB for this firmware",
                 )
             ),
         )

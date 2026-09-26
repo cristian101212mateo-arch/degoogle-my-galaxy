@@ -57,7 +57,7 @@ class TransactionJournalStore(
         file.parentFile?.mkdirs()
         val tmp = File(file.parentFile, "${file.name}.tmp")
         tmp.writeText(json.encodeToString(TransactionJournal.serializer(), journal))
-        if (!tmp.renameTo(file)) error("rename atômico do journal falhou")
+        if (!tmp.renameTo(file)) error("journal atomic rename failed")
     }.isSuccess
 
     fun update(

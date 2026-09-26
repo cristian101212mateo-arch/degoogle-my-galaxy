@@ -40,19 +40,19 @@ object RecoveryPolicy {
             state == DeviceState.RESTORE_PREPARED -> RecoveryAssessment(
                 state = state,
                 action = AutoRecoveryAction.RESTORE_STOCK,
-                reason = "rollback sem reindexamento do Package Manager",
+                reason = "rollback without Package Manager reindexing",
             )
             state == DeviceState.ERROR && legacyMount -> RecoveryAssessment(
                 state = state,
                 action = AutoRecoveryAction.RESTORE_STOCK,
-                reason = "máscara legada conhecida ainda montada",
+                reason = "known legacy mask still mounted",
             )
             state == DeviceState.STOCK && facts.maskResiduePresent -> RecoveryAssessment(
                 state = state,
                 action = AutoRecoveryAction.CLEAN_RESIDUE,
-                reason = "máscaras desmontadas ainda contêm payloads conhecidos",
+                reason = "unmounted masks still hold known payloads",
             )
-            else -> RecoveryAssessment(state, AutoRecoveryAction.NONE, "nenhuma recuperação automática segura")
+            else -> RecoveryAssessment(state, AutoRecoveryAction.NONE, "no safe automatic recovery")
         }
     }
 }
@@ -94,7 +94,7 @@ class AutoRecoveryCoordinator(
                 assessment = RecoveryAssessment(
                     state = DeviceState.ERROR,
                     action = AutoRecoveryAction.NONE,
-                    reason = "probe falhou",
+                    reason = "probe failed",
                 ),
                 facts = facts,
                 message = "Probe failed: ${probe.raw.stderr.ifBlank { "root/backend unavailable" }}",

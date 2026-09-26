@@ -66,7 +66,7 @@ class KnownGoodDatabase private constructor(
             return KnownGoodMatchResult(
                 level = KnownGoodMatch.EXACT_MATCH,
                 profile = exact,
-                evidence = listOf("modelo, SDK, fingerprint, root e metadados do firmware conferem"),
+                evidence = listOf("model, SDK, fingerprint, root and firmware metadata match"),
             )
         }
 
@@ -79,14 +79,14 @@ class KnownGoodDatabase private constructor(
             return KnownGoodMatchResult(
                 level = KnownGoodMatch.FIRMWARE_FAMILY_MATCH,
                 profile = family,
-                evidence = listOf("modelo, SDK e backend conferem; fingerprint não homologado"),
+                evidence = listOf("model, SDK and backend match; fingerprint not homologated"),
             )
         }
 
         return KnownGoodMatchResult(
             level = KnownGoodMatch.MODEL_ONLY_MATCH,
             profile = candidates.first(),
-            evidence = listOf("somente modelo Samsung conhecido; isso não prova compatibilidade"),
+            evidence = listOf("only Samsung model known; this does not prove compatibility"),
         )
     }
 

@@ -38,14 +38,14 @@ class MicrogManager(
     )
 
     suspend fun prepareNewSession(): PrepareResult {
-        Log.i(TAG, "iniciando prepareNewSession")
+        Log.i(TAG, "starting prepareNewSession")
         onStep(context.getString(R.string.op_querying_repo))
         // GmsCore + Companion (FakeStore) sempre da mesma fonte; nunca
         // mistura GitHub com F-Droid no mesmo par.
         val pair = releases.latestPair()
         val gms = pair?.gms
             ?: return PrepareResult(false, null, null, context.getString(R.string.op_repo_error)).also {
-                Log.e(TAG, "falha ao consultar release do GmsCore")
+                Log.e(TAG, "failed to query GmsCore release")
             }
         Log.i(TAG, "GmsCore: v${gms.versionCode} ${gms.apkName} sha256=${gms.sha256.take(16)}…")
         onStep(context.getString(R.string.op_gms_release, label(gms)))
@@ -119,7 +119,7 @@ class MicrogManager(
         onStep(context.getString(R.string.op_applying_masks))
         val r = backend.prepare(gmsApk.absolutePath, companionApk.absolutePath)
         if (!r.succeeded) {
-            Log.e(TAG, "prepare falhou exit=${r.exitCode}: ${r.stderr.lineSequence().lastOrNull()}")
+            Log.e(TAG, "prepare failed exit=${r.exitCode}: ${r.stderr.lineSequence().lastOrNull()}")
             return PrepareResult(
                 false, gms, companion,
                 context.getString(

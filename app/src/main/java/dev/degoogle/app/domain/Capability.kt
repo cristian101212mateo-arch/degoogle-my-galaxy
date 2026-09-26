@@ -56,7 +56,7 @@ data class CapabilityMatrix(
     val results: Map<Capability, CapabilityResult>,
 ) {
     operator fun get(capability: Capability): CapabilityResult =
-        results[capability] ?: CapabilityResult.unknown("capability não observada")
+        results[capability] ?: CapabilityResult.unknown("capability not observed")
 
     fun allPass(capabilities: Collection<Capability> = CRITICAL_CAPABILITIES): Boolean =
         capabilities.all { this[it].status == CapabilityStatus.PASS }
@@ -133,78 +133,78 @@ object CapabilityEngine {
         inferred[Capability.ROOT] = if (facts.rootOk) {
             CapabilityResult.pass("id -u = 0; backend=${facts.rootManager.ifBlank { "unknown" }}")
         } else {
-            CapabilityResult.fail("root não disponível", "id -u != 0")
+            CapabilityResult.fail("root not available", "id -u != 0")
         }
         inferred[Capability.SAMSUNG_DEVICE] = when {
-            facts.manufacturer.isBlank() -> CapabilityResult.unknown("manufacturer ausente")
+            facts.manufacturer.isBlank() -> CapabilityResult.unknown("manufacturer missing")
             facts.manufacturer.equals("samsung", ignoreCase = true) ->
                 CapabilityResult.pass("ro.product.manufacturer=${facts.manufacturer}")
-            else -> CapabilityResult.fail("fabricante não é Samsung", facts.manufacturer)
+            else -> CapabilityResult.fail("not a Samsung device", facts.manufacturer)
         }
 
         inferred[Capability.SYSTEM_GMS_FOUND] = if (facts.mountGms) {
-            CapabilityResult.pass(facts.gmsPath ?: "GMS mascarado via microG")
+            CapabilityResult.pass(facts.gmsPath ?: "GMS masked via microG")
         } else {
             packageFound(facts.gmsPackage, facts.gmsPath, "GMS")
         }
         inferred[Capability.SYSTEM_GSF_FOUND] = if (facts.mountGsf) {
-            CapabilityResult.pass("GSF mascarado (vazio)")
+            CapabilityResult.pass("GSF masked (empty)")
         } else {
             packageFound(facts.gsfPackage, facts.gsfPath, "GSF")
         }
         inferred[Capability.SYSTEM_STORE_FOUND] = if (facts.mountStore) {
-            CapabilityResult.pass(facts.storePath ?: "Store mascarada via Companion")
+            CapabilityResult.pass(facts.storePath ?: "Store masked via Companion")
         } else {
             packageFound(facts.storePackage, facts.storePath, "Store")
         }
         inferred[Capability.GMS_MASKABLE] = if (facts.mountGms) {
-            CapabilityResult.pass("alvo GMS já mascarado com sucesso")
+            CapabilityResult.pass("GMS target already masked successfully")
         } else {
             maskable(facts.gmsPackage, facts.gmsPath, "GMS")
         }
         inferred[Capability.GSF_MASKABLE] = if (facts.mountGsf) {
-            CapabilityResult.pass("alvo GSF já mascarado com sucesso")
+            CapabilityResult.pass("GSF target already masked successfully")
         } else {
             maskable(facts.gsfPackage, facts.gsfPath, "GSF")
         }
         inferred[Capability.STORE_MASKABLE] = if (facts.mountStore) {
-            CapabilityResult.pass("alvo Store já mascarado com sucesso")
+            CapabilityResult.pass("Store target already masked successfully")
         } else {
             maskable(facts.storePackage, facts.storePath, "Store")
         }
 
         inferred[Capability.SELINUX_ENFORCING] = when (facts.selinux.trim().lowercase()) {
             "enforcing" -> CapabilityResult.pass("getenforce=Enforcing")
-            "permissive", "disabled" -> CapabilityResult.fail("SELinux não está Enforcing", facts.selinux)
-            else -> CapabilityResult.unknown("estado SELinux ausente")
+            "permissive", "disabled" -> CapabilityResult.fail("SELinux is not Enforcing", facts.selinux)
+            else -> CapabilityResult.unknown("SELinux state missing")
         }
         inferred[Capability.PRIV_APP_COMPATIBLE] = when {
-            facts.gmsPrivileged -> CapabilityResult.pass("GMS reportado como PRIVILEGED")
-            facts.gmsPath == null -> CapabilityResult.unknown("GMS não localizado")
-            else -> CapabilityResult.fail("GMS não possui flag PRIVILEGED", facts.gmsFlags.orEmpty())
+            facts.gmsPrivileged -> CapabilityResult.pass("GMS reported as PRIVILEGED")
+            facts.gmsPath == null -> CapabilityResult.unknown("GMS not found")
+            else -> CapabilityResult.fail("GMS lacks PRIVILEGED flag", facts.gmsFlags.orEmpty())
         }
 
         // Estas capacidades não devem ser deduzidas por semelhança de modelo.
         inferred[Capability.GLOBAL_MOUNT_NAMESPACE] = CapabilityResult.unknown(
-            "namespace global não foi testado pelo probe",
+            "global namespace not tested by probe",
         )
         inferred[Capability.BIND_MOUNT] = CapabilityResult.unknown(
-            "bind mount reversível não foi testado pelo probe",
+            "reversible bind mount not tested by probe",
         )
         inferred[Capability.SELINUX_CONTEXT_CLONABLE] = CapabilityResult.unknown(
-            "contexto SELinux do alvo não foi validado",
+            "target SELinux context not validated",
         )
         inferred[Capability.SIGNATURE_SPOOFING] = CapabilityResult.unknown(
-            "não há evidência funcional de signature spoofing",
+            "no functional signature-spoofing evidence",
         )
         inferred[Capability.PACKAGE_MANAGER_CACHE_ACCESS] = CapabilityResult.unknown(
-            "acesso ao cache do PackageManager não foi testado",
+            "PackageManager cache access not tested",
         )
         inferred[Capability.SAFE_SOFT_REBOOT] = CapabilityResult.unknown(
-            "estratégia de reboot não foi validada neste firmware",
+            "reboot strategy not validated on this firmware",
         )
         inferred[Capability.SAFE_RESTORE] = CapabilityResult.unknown(
-            "rollback ainda não foi validado pelo preflight",
+            "rollback not yet validated by preflight",
         )
 
         // O shell pode fornecer provas mais específicas. Elas sempre vencem a
@@ -230,8 +230,8 @@ object CapabilityEngine {
         if (info?.hasDataUpdate != true) return
         if (info.activeCodePath?.startsWith("/data/app/") != true) return
         inferred[capability] = CapabilityResult.warn(
-            reason = "$label: atualização ativa em /data/app; target stock será revalidado no cleanup",
-            evidence = "active=${info.activeCodePath}; original=${info.originalSystemPath ?: "não exposto pelo PM"}",
+            reason = "$label: active update in /data/app; stock target will be revalidated during cleanup",
+            evidence = "active=${info.activeCodePath}; original=${info.originalSystemPath ?: "not exposed by PM"}",
         )
     }
 
@@ -240,49 +240,49 @@ object CapabilityEngine {
             info?.activeCodePath?.isNotBlank() == true ->
                 CapabilityResult.pass("$label: ${info.activeCodePath}")
             !legacyPath.isNullOrBlank() -> CapabilityResult.pass("$label: $legacyPath")
-            else -> CapabilityResult.fail("$label não encontrado")
+            else -> CapabilityResult.fail("$label not found")
         }
 
     private fun maskable(info: SystemPackageInfo?, legacyPath: String?, label: String): CapabilityResult {
         if (info != null) {
             if (info.hasDataUpdate && info.activeCodePath?.startsWith("/data/app/") == true) {
                 return CapabilityResult.warn(
-                    reason = "$label: atualização ativa em /data/app; target stock será revalidado no cleanup",
-                    evidence = "active=${info.activeCodePath}; original=${info.originalSystemPath ?: "não exposto pelo PM"}",
+                    reason = "$label: active update in /data/app; stock target will be revalidated during cleanup",
+                    evidence = "active=${info.activeCodePath}; original=${info.originalSystemPath ?: "not exposed by PM"}",
                 )
             }
             if (info.originalSystemPath.isNullOrBlank()) {
                 if (info.targetDirectory != null && !info.safeTarget) {
                     return CapabilityResult.fail(
-                        "$label: alvo fora das raízes permitidas",
+                        "$label: target outside allowed roots",
                         info.targetDirectory,
                     )
                 }
-                return CapabilityResult.unknown("$label: caminho original do sistema é ambíguo")
+                return CapabilityResult.unknown("$label: ambiguous original system path")
             }
             if (!info.safeTarget) {
-                return CapabilityResult.fail("$label: alvo fora das raízes permitidas", info.targetDirectory.orEmpty())
+                return CapabilityResult.fail("$label: target outside allowed roots", info.targetDirectory.orEmpty())
             }
             if (info.hasDataUpdate) {
                 return CapabilityResult.warn(
-                    reason = "$label: existe atualização em /data/app; requer cleanup explícito",
+                    reason = "$label: update in /data/app; explicit cleanup required",
                     evidence = info.activeCodePath.orEmpty(),
                 )
             }
-            return CapabilityResult.pass("$label: alvo=${info.targetDirectory}")
+            return CapabilityResult.pass("$label: target=${info.targetDirectory}")
         }
         return when {
-            legacyPath.isNullOrBlank() -> CapabilityResult.unknown("$label: pacote não localizado")
+            legacyPath.isNullOrBlank() -> CapabilityResult.unknown("$label: package not found")
             legacyPath.startsWith("/system/") ||
             legacyPath.startsWith("/system_ext/") ||
                 legacyPath.startsWith("/product/") ->
-                CapabilityResult.pass("$label: caminho de sistema conhecido=$legacyPath")
+                CapabilityResult.pass("$label: known system path=$legacyPath")
             legacyPath.startsWith("/data/app/") ->
                 CapabilityResult.warn(
-                    "$label: só há atualização em /data/app; target stock precisa ser revalidado",
+                    "$label: only an update in /data/app; stock target needs revalidation",
                     legacyPath,
                 )
-            else -> CapabilityResult.fail("$label: caminho fora das raízes permitidas", legacyPath)
+            else -> CapabilityResult.fail("$label: path outside allowed roots", legacyPath)
         }
     }
 }

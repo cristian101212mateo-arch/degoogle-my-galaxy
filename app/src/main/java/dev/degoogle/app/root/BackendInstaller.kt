@@ -28,10 +28,10 @@ class BackendInstaller(private val context: Context) {
             target.setExecutable(true, false)
             target.setReadable(true, false)
             target.setWritable(true, true)
-            Log.i(TAG, "backend instalado em ${target.absolutePath} (${assetBytes.size} bytes)")
+            Log.i(TAG, "backend installed at ${target.absolutePath} (${assetBytes.size} bytes)")
         }
         target
-    }.onFailure { Log.e(TAG, "falha ao instalar backend", it) }.getOrNull()
+    }.onFailure { Log.e(TAG, "failed to install backend", it) }.getOrNull()
 
     fun sha256(data: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) }

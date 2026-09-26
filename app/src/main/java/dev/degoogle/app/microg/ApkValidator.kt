@@ -5,6 +5,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import dev.degoogle.app.R
 import java.io.File
 import java.security.MessageDigest
 
@@ -39,7 +40,7 @@ class ApkValidator(private val context: Context) {
         expectedCertSha256: String?,
     ): ValidationResult {
         if (!file.exists() || file.length() == 0L) {
-            return ValidationResult.Failed("arquivo vazio ou ausente")
+            return ValidationResult.Failed(context.getString(R.string.validator_empty_file))
         }
 
         // 1) parse pelo PackageManager
@@ -51,11 +52,11 @@ class ApkValidator(private val context: Context) {
             @Suppress("DEPRECATION")
             pm.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_SIGNATURES)
         }
-        if (info == null) return ValidationResult.Failed("não é um APK parseável")
+        if (info == null) return ValidationResult.Failed(context.getString(R.string.validator_unparseable))
 
         // 2) package name
         if (info.packageName != expectedPackage) {
-            return ValidationResult.Failed("packageName inesperado: ${info.packageName}")
+            return ValidationResult.Failed(context.getString(R.string.validator_unexpected_package, info.packageName))
         }
 
         // 3) versão (longVersionCode só existe a partir da API 28)
@@ -66,14 +67,14 @@ class ApkValidator(private val context: Context) {
         }
         if (actualCode != expectedVersionCode) {
             return ValidationResult.Failed(
-                "versionCode inesperado: $actualCode (esperado $expectedVersionCode)"
+                context.getString(R.string.validator_unexpected_version_code, actualCode, expectedVersionCode),
             )
         }
         if (expectedVersionName.isNotEmpty() &&
             !info.versionName.equals(expectedVersionName, ignoreCase = true)
         ) {
             return ValidationResult.Failed(
-                "versionName inesperado: ${info.versionName} (esperado $expectedVersionName)"
+                context.getString(R.string.validator_unexpected_version_name, info.versionName, expectedVersionName),
             )
         }
 
@@ -81,16 +82,16 @@ class ApkValidator(private val context: Context) {
         val certSha = info.signatures?.firstOrNull()?.toByteArray()
             ?.let { sha256Hex(it) }
         if (expectedCertSha256 != null && certSha != null && certSha != expectedCertSha256) {
-            return ValidationResult.Failed("assinatura não confere com o índice ($certSha)")
+            return ValidationResult.Failed(context.getString(R.string.validator_signature_mismatch, certSha))
         }
 
         // 5) hash do arquivo inteiro
         val actualSha = file.inputStream().use { sha256Hex(it.readBytes()) }
         if (expectedSha256.isNotEmpty() && actualSha != expectedSha256) {
-            return ValidationResult.Failed("sha256 não confere ($actualSha != $expectedSha256)")
+            return ValidationResult.Failed(context.getString(R.string.validator_sha256_mismatch, actualSha, expectedSha256))
         }
 
-        Log.i(TAG, "APK válido: $expectedPackage v$expectedVersionCode sha256=$actualSha")
+        Log.i(TAG, "Valid APK: $expectedPackage v$expectedVersionCode sha256=$actualSha")
         return ValidationResult.Ok(info)
     }
 
