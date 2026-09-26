@@ -277,7 +277,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         result.succeeded,
                         if (result.succeeded) {
                             app.getString(R.string.op_prepared_success)
@@ -319,7 +319,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         when {
                             !restoreOk -> app.getString(R.string.op_restore_backup_failed)
@@ -352,7 +352,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) {
                             app.getString(R.string.op_backup_success)
@@ -382,7 +382,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) {
                             app.getString(R.string.op_restore_success)
@@ -415,7 +415,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) app.getString(R.string.op_updates_removed) else app.getString(R.string.op_updates_remove_failed),
                     )).takeLast(MAX_OPERATION_LOG_LINES),
@@ -440,7 +440,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) app.getString(R.string.op_backup_deleted) else app.getString(R.string.op_delete_backup_failed),
                     )).takeLast(MAX_OPERATION_LOG_LINES),
@@ -467,7 +467,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) app.getString(R.string.op_unlock_success) else app.getString(R.string.op_unlock_failed),
                     )).takeLast(MAX_OPERATION_LOG_LINES),
@@ -502,7 +502,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) app.getString(R.string.op_rollback_prepared) else app.getString(R.string.op_rollback_failed),
                     )).takeLast(MAX_OPERATION_LOG_LINES),
@@ -531,7 +531,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) app.getString(R.string.op_reindex_success) else app.getString(R.string.op_rollback_failed),
                     )).takeLast(MAX_OPERATION_LOG_LINES),
@@ -589,7 +589,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             _ui.update {
                 it.copy(
                     operationInProgress = false,
-                    steps = (it.steps + StepLog(
+                    steps = it.steps.plusUnlessDuplicate(StepLog(
                         ok,
                         if (ok) {
                             app.getString(R.string.op_soft_reboot_requested_log)
@@ -657,12 +657,25 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val line = localizeProgressLine(text.trim().replace('\u0000', ' '))
             .takeIf { it.isNotBlank() } ?: return
         _ui.update { current ->
+            val last = current.steps.lastOrNull()
+            // backend stream + onStep + wrapper final costumam emitir o
+            // mesmo marco (ex.: "PREPARE CONCLUÍDO" vira op_prepared_success
+            // e o manager/viewmodel repetem). Mesma linha em seguida não
+            // duplica, só refina o status.
+            if (last?.text == line) {
+                if (last.ok == ok) return@update current
+                return@update current.copy(
+                    steps = (current.steps.dropLast(1) + StepLog(ok ?: last.ok, line))
+                        .takeLast(MAX_OPERATION_LOG_LINES),
+                )
+            }
+
             val isProgressUpdate = ok == null &&
                 line.contains(" • ") &&
-                current.steps.lastOrNull()?.let { last ->
-                    last.ok == null && (
-                        last.text.startsWith(line.substringBefore('(').trim()) ||
-                        last.text.contains(" • ")
+                last?.let {
+                    it.ok == null && (
+                        it.text.startsWith(line.substringBefore('(').trim()) ||
+                        it.text.contains(" • ")
                     )
                 } == true
 
@@ -678,6 +691,18 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun logStep(ok: Boolean?, text: String) = appendOperationLog(ok, text)
+
+    /**
+     * Append que ignora marcos consecutivos idênticos. Os wrappers finais
+     * repetem o que backend stream + onStep já emitiram (ex.: restore com
+     * sucesso aparece 3x); aqui vira no máximo uma linha com status refinado.
+     */
+    private fun List<StepLog>.plusUnlessDuplicate(entry: StepLog): List<StepLog> {
+        val last = lastOrNull()
+        if (last?.text != entry.text) return this + entry
+        if (last.ok == entry.ok) return this
+        return dropLast(1) + entry
+    }
 
     private fun localizeProgressLine(raw: String): String {
         if (raw.isBlank()) return raw
