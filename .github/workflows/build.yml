@@ -50,8 +50,11 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
+      - name: Clean Gradle cache
+        run: ./gradlew clean --no-build-cache
+
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew clean assembleDebug --rerun-tasks --no-build-cache --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
