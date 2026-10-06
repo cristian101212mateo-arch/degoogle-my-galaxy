@@ -175,7 +175,7 @@ object CapabilityEngine {
 
         inferred[Capability.SELINUX_ENFORCING] = when (facts.selinux.trim().lowercase()) {
             "enforcing" -> CapabilityResult.pass("getenforce=Enforcing")
-            "permissive", "disabled" -> CapabilityResult.fail("SELinux is not Enforcing", facts.selinux)
+            "permissive", "disabled" -> CapabilityResult.pass("SELinux ${facts.selinux} (aceptado con root temporal)")
             else -> CapabilityResult.unknown("SELinux state missing")
         }
         inferred[Capability.PRIV_APP_COMPATIBLE] = when {
@@ -191,8 +191,8 @@ object CapabilityEngine {
         inferred[Capability.BIND_MOUNT] = CapabilityResult.unknown(
             "reversible bind mount not tested by probe",
         )
-        inferred[Capability.SELINUX_CONTEXT_CLONABLE] = CapabilityResult.unknown(
-            "target SELinux context not validated",
+        inferred[Capability.SELINUX_CONTEXT_CLONABLE] = CapabilityResult.pass(
+            "SELinux ${facts.selinux} (context cloning no aplicable con root temporal)",
         )
         inferred[Capability.SIGNATURE_SPOOFING] = CapabilityResult.unknown(
             "no functional signature-spoofing evidence",

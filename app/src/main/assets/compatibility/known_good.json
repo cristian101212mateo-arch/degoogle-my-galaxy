@@ -16,6 +16,22 @@
         "gsf": "/system_ext/priv-app/GoogleServicesFramework",
         "store": "/product/priv-app/Phonesky"
       }
+    },
+    {
+      "id": "samsung-sm-a556e-android16-kernelsu",
+      "manufacturer": "samsung",
+      "model": "SM-A556E",
+      "androidSdk": 36,
+      "buildFingerprintPattern": "^samsung/.*/a55x:16/.*/A556EXXUEDZE4:user/release-keys$",
+      "rootBackend": "KERNELSU",
+      "rebootStrategy": "KSUD_SOFT_REBOOT",
+      "firmwareValidated": true,
+      "status": "KNOWN_GOOD",
+      "expectedPaths": {
+        "gms": "/product/priv-app/GmsCore",
+        "gsf": "/system/system_ext/priv-app/GoogleServicesFramework",
+        "store": "/product/priv-app/Phonesky"
+      }
     }
   ]
 }
