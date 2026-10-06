@@ -47,7 +47,7 @@ SCRIPT_VERSION="0.2.0"
 # ---------------------------------------------------------------------------
 PROFILE_ID="samsung_sm-s928b"
 PROFILE_MANUFACTURER="samsung"
-PROFILE_MODELS="SM-S928B|SM-S928U|SM-S928W|SM-S928N|SM-S9280"
+PROFILE_MODELS="SM-S928B|SM-S928U|SM-S928W|SM-S928N|SM-S9280|SM-A556E"
 
 GMS_PKG="com.google.android.gms"
 GSF_PKG="com.google.android.gsf"
@@ -61,7 +61,7 @@ PM_SYSTEM_DIR="${DEGOOGLE_PM_SYSTEM_DIR:-/data/system}"
 PM_CACHE_DIR="${DEGOOGLE_PM_CACHE:-$PM_SYSTEM_DIR/package_cache}"
 
 PROFILE_GMS="${DEGOOGLE_PROFILE_GMS:-/product/priv-app/GmsCore}"
-PROFILE_GSF="${DEGOOGLE_PROFILE_GSF:-/system_ext/priv-app/GoogleServicesFramework}"
+PROFILE_GSF="${DEGOOGLE_PROFILE_GSF:-/system/system_ext/priv-app/GoogleServicesFramework}"
 PROFILE_STORE="${DEGOOGLE_PROFILE_STORE:-/product/priv-app/Phonesky}"
 
 MASK_BASE="${DEGOOGLE_MASK_BASE:-/data/local/tmp/degoogle-mask}"
@@ -760,7 +760,7 @@ profile_check()
     model="$(getprop ro.product.model 2>/dev/null)"
     # padrões literais: em case, '|' vindo de variável NÃO é alternância
     case "$model" in
-        SM-S928B|SM-S928U|SM-S928W|SM-S928N|SM-S9280) return 0 ;;
+        SM-S928B|SM-S928U|SM-S928W|SM-S928N|SM-S9280|SM-A556E) return 0 ;;
         *) return 1 ;;
     esac
 }

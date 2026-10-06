@@ -1,0 +1,61 @@
+name: Build DeGoogle APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install build-tools
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Create keystore
+        run: |
+          keytool -genkey -v \
+            -keystore $GITHUB_WORKSPACE/degoogle.keystore \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias degoogle-release \
+            -storepass degoogle123 \
+            -keypass degoogle123 \
+            -dname "CN=DeGoogle, OU=Personal, O=Personal, L=MX, S=MX, C=MX"
+
+      - name: Create keystore.properties
+        run: |
+          cat > keystore.properties << EOF
+          storeFile=$GITHUB_WORKSPACE/degoogle.keystore
+          storePassword=degoogle123
+          keyAlias=degoogle-release
+          keyPassword=degoogle123
+          EOF
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: degoogle-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
